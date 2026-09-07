@@ -11,7 +11,6 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -25,7 +24,7 @@ import com.agent.boss.ui.settings.ApiKeyConfigActivity
 import com.agent.boss.ui.settings.ResumeEditorActivity
 
 /**
- * 宿主应用总控大厅：权限智能自检、功能入口与 Agent 一键启动中心
+ * 宿主应用总控大厅 (已解决自动跳转与预热等待)
  */
 class MainActivity : AppCompatActivity() {
 
@@ -33,6 +32,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var overlayStatusTv: TextView
     private lateinit var batteryStatusTv: TextView
     private lateinit var launchBtn: TextView
+
+    companion object {
+        private const val BOSS_PACKAGE = "com.hpbr.bosszhipin"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,7 +60,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(p, p, p, p)
         }
 
-        // ==================== 顶部品牌标语 ====================
         val titleTv = TextView(this).apply {
             text = "🤖 BossAgent 智能求职体"
             textSize = 20f
@@ -78,7 +80,6 @@ class MainActivity : AppCompatActivity() {
         container.addView(titleTv)
         container.addView(subTitleTv)
 
-        // ==================== 必备权限状态卡片 ====================
         val permSectionTitle = TextView(this).apply {
             text = "运行权限状态检查"
             textSize = 13f
@@ -105,36 +106,18 @@ class MainActivity : AppCompatActivity() {
             ).apply { topMargin = dp2px(8) }
         }
 
-        // 1. 无障碍权限
-        accessibilityStatusTv = createPermissionRow(
-            permCard,
-            "1. 无障碍核心通道 (用于屏幕感知与手势)",
-            "前往开启"
-        ) {
+        accessibilityStatusTv = createPermissionRow(permCard, "1. 无障碍核心通道 (用于屏幕感知与手势)", "前往开启") {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
-        // 2. 悬浮窗权限
-        overlayStatusTv = createPermissionRow(
-            permCard,
-            "2. 悬浮窗权限 (展示极客控制台与状态灯)",
-            "前往授权"
-        ) {
+        overlayStatusTv = createPermissionRow(permCard, "2. 悬浮窗权限 (展示极客控制台与状态灯)", "前往授权") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
                 startActivity(intent)
             }
         }
 
-        // 3. 电池优化白名单
-        batteryStatusTv = createPermissionRow(
-            permCard,
-            "3. 忽略电池优化 (防止后台断流)",
-            "加入白名单"
-        ) {
+        batteryStatusTv = createPermissionRow(permCard, "3. 忽略电池优化 (防止后台断流)", "加入白名单") {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 try {
                     val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
@@ -149,7 +132,6 @@ class MainActivity : AppCompatActivity() {
 
         container.addView(permCard)
 
-        // ==================== 核心配置入口 ====================
         val navSectionTitle = TextView(this).apply {
             text = "智能体核心大脑配置"
             textSize = 13f
@@ -184,9 +166,8 @@ class MainActivity : AppCompatActivity() {
 
         container.addView(navContainer)
 
-        // ==================== 一键启动超级按钮 ====================
         launchBtn = TextView(this).apply {
-            text = "🚀 启动 BossAgent (开启悬浮窗并寻岗)"
+            text = "🚀 启动 BossAgent (直接跳转并寻岗)"
             textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -327,19 +308,31 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 1. 启动悬浮窗前台服务
+        // 1. 尝试拉起 Boss 直聘应用
+        var launchSuccess = false
+        val bossIntent = packageManager.getLaunchIntentForPackage(BOSS_PACKAGE)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        }
+
+        if (bossIntent != null) {
+            try {
+                startActivity(bossIntent)
+                launchSuccess = true
+            } catch (e: Exception) {
+                Toast.makeText(this, "拉起 Boss 直聘异常: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(this, "未检测到 Boss 直聘安装，请手动打开", Toast.LENGTH_LONG).show()
+        }
+
+        // 2. 开启悬浮窗服务
         FloatingHUDService.startService(this)
 
-        // 2. 启动总调度中枢工作流
-        app.taskDispatcher.start()
+        // 3. 启动任务调度器：注入 4000ms 预热倒计时缓冲，等待 Boss 直聘界面渲染
+        app.taskDispatcher.start(warmUpDelayMs = 4000L)
 
-        Toast.makeText(this, "🎉 BossAgent 已启动，请切换到 Boss 直聘前台！", Toast.LENGTH_LONG).show()
-
-        // 尝试自动拉起 Boss 直聘
-        val bossIntent = packageManager.getLaunchIntentForPackage("com.hpbr.bosszhipin")
-        if (bossIntent != null) {
-            startActivity(bossIntent)
-        }
+        val tipText = if (launchSuccess) "🎉 正在跳转至 Boss 直聘，将在 4 秒预热后自动寻岗！" else "🎉 悬浮窗已就绪，请手动打开 Boss 直聘"
+        Toast.makeText(this, tipText, Toast.LENGTH_SHORT).show()
     }
 
     private fun dp2px(dp: Int): Int {

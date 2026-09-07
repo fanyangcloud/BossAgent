@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * 任务调度中枢大脑 (TaskDispatcher)
+ * 任务调度中枢大脑 (已注入缓冲倒计时与冷启动防护)
  */
 class TaskDispatcher(
     private val context: Context,
@@ -49,15 +49,12 @@ class TaskDispatcher(
     private val feedbackReceiver = AccessibilityFeedbackReceiver()
     private val controlReceiver = SupervisorControlReceiver()
 
-    // 记录本轮巡查已经处理过的 JobId，防止重复点击同一卡片
     private val processedJobIdsInSession = mutableSetOf<String>()
 
     init {
         setupStateListener()
         setupReceivers()
     }
-
-    // ==================== 状态机与广播绑定 ====================
 
     private fun setupStateListener() {
         stateMachine.addListener { oldState, newState, reason ->
@@ -92,15 +89,16 @@ class TaskDispatcher(
         context.registerReceiver(controlReceiver, SupervisorControlReceiver.createIntentFilter(), exportFlag)
     }
 
-    // ==================== 调度生命周期控制 ====================
-
-    fun start() {
+    /**
+     * 启动工作流：默认预留 warmUpDelayMs（如 4000ms）等待 App 启动
+     */
+    fun start(warmUpDelayMs: Long = 4000L) {
         if (stateMachine.getCurrentState().isOperating()) {
             Log.w(tag, "调度器已经在运行中")
             return
         }
 
-        Log.i(tag, "🚀 启动 TaskDispatcher 全自主工作流...")
+        Log.i(tag, "🚀 启动 TaskDispatcher 工作流...")
         dispatcherScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
         supervisorAgent.start()
@@ -112,6 +110,16 @@ class TaskDispatcher(
         configRepository.setPaused(false)
 
         orchestratorJob = dispatcherScope.launch {
+            // 1. 预热倒计时：给 Boss 直聘开屏和渲染留出充分时间
+            if (warmUpDelayMs > 0) {
+                val totalSeconds = (warmUpDelayMs / 1000).toInt()
+                for (s in totalSeconds downTo 1) {
+                    broadcastStepLog("🚀 正在拉起 Boss 直聘，将在 ${s}s 后开启寻岗...")
+                    delay(1000L)
+                }
+            }
+
+            // 2. 正式进入协作主循环
             runOrchestrationLoop()
         }
     }
@@ -126,21 +134,21 @@ class TaskDispatcher(
         evaluatorAgent.stop()
         communicatorAgent.stop()
 
-        stateMachine.transitionTo(EngineState.IDLE, "用户手动终止")
+        stateMachine.transitionTo(EngineState.IDLE, "终止任务")
         processedJobIdsInSession.clear()
     }
 
     fun pause() {
         if (stateMachine.transitionTo(EngineState.PAUSED, "暂停指令")) {
             configRepository.setPaused(true)
-            Log.i(tag, "⏸️ 调度流水线已挂起")
+            broadcastStepLog("⏸️ 流水线已挂起")
         }
     }
 
     fun resume() {
         if (stateMachine.transitionTo(EngineState.SCANNING, "恢复执行")) {
             configRepository.setPaused(false)
-            Log.i(tag, "▶️ 调度流水线恢复运行")
+            broadcastStepLog("▶️ 流水线已恢复")
         }
     }
 
@@ -149,11 +157,8 @@ class TaskDispatcher(
         stop()
     }
 
-    // ==================== 核心自主寻岗协作主循环 ====================
-
     private suspend fun runOrchestrationLoop() {
         while (dispatcherScope.isActive) {
-            // 1. 暂停态自旋等待
             if (stateMachine.getCurrentState() == EngineState.PAUSED) {
                 delay(1000L)
                 continue
@@ -163,29 +168,46 @@ class TaskDispatcher(
                 break
             }
 
-            // 2. 检查单日投递限额
             val maxLimit = configRepository.getMaxDailyGreetings()
             if (!jobRepository.canGreetMoreToday(maxLimit)) {
-                Log.i(tag, "今日已达最大打招呼额度 ($maxLimit)，任务平稳收尾")
+                broadcastStepLog("今日打招呼已达最大上限 ($maxLimit 次)，任务完成！")
                 stop()
                 break
             }
 
-            // 3. 进入扫描态：抓取当前屏的有效卡片
             stateMachine.transitionTo(EngineState.SCANNING, "扫描当前屏幕卡片")
-            val cardAnchors = scoutAgent.scanCurrentFeedCards()
+            
+            // 温和等待列表界面就绪（最多等待 10 秒，每秒查一次，杜绝刚切换就报错）
+            var cardAnchors = emptyList<ScoutAgent.CardAnchor>()
+            var waitListSeconds = 0
+            while (dispatcherScope.isActive && waitListSeconds < 10) {
+                cardAnchors = scoutAgent.scanCurrentFeedCards()
+                if (cardAnchors.isNotEmpty()) break
+                broadcastStepLog("等待职位列表就绪 (${waitListSeconds + 1}s)...")
+                delay(1000L)
+                waitListSeconds++
+            }
 
-            var processedCardInScreen = 0
+            if (cardAnchors.isEmpty()) {
+                broadcastStepLog("未发现有效卡片，尝试向上滑动刷新一次...")
+                val scrollDeferred = CompletableDeferred<Boolean>()
+                scoutAgent.scrollNextPage(
+                    allowTabSwitch = false,
+                    onCompleted = { scrollDeferred.complete(true) },
+                    onFailed = { scrollDeferred.complete(false) }
+                )
+                scrollDeferred.await()
+                humanDelay(2000L, 300L)
+                continue
+            }
 
             for (card in cardAnchors) {
                 if (!dispatcherScope.isActive || !stateMachine.getCurrentState().isOperating()) break
 
-                // 4. 检查是否正在暂停
                 while (stateMachine.getCurrentState() == EngineState.PAUSED) {
                     delay(1000L)
                 }
 
-                // 5. 详查态：深入详情提取全量 JD
                 stateMachine.transitionTo(EngineState.INSPECTING, "查看岗位详情")
                 val scrapeDeferred = CompletableDeferred<ScrapedRawJob?>()
 
@@ -197,7 +219,6 @@ class TaskDispatcher(
 
                 val job = scrapeDeferred.await()
                 if (job == null) {
-                    Log.w(tag, "提取详情失败，跳过该卡片")
                     continue
                 }
 
@@ -206,16 +227,12 @@ class TaskDispatcher(
                     continue
                 }
                 processedJobIdsInSession.add(jobId)
-                processedCardInScreen++
 
-                // 6. 思考态：交给 Evaluator 参谋进行双引擎评估
                 stateMachine.transitionTo(EngineState.THINKING, "DeepSeek 评估中")
                 val evalResult = evaluatorAgent.evaluate(job)
 
-                // 拟人化思考停顿 (基于高斯分布)
                 humanDelay(1200L, 300L)
 
-                // 7. 沟通态：若通过评估，由 Communicator 破冰沟通
                 if (evalResult.isApproved) {
                     stateMachine.transitionTo(EngineState.COMMUNICATING, "发起打招呼破冰")
                     val greetDeferred = CompletableDeferred<Boolean>()
@@ -228,14 +245,12 @@ class TaskDispatcher(
                     )
 
                     greetDeferred.await()
-                    // 成功打招呼后的防封冷静期 (2000ms ~ 3500ms)
                     humanDelay(2500L, 500L)
                 }
 
                 stateMachine.transitionTo(EngineState.SCANNING, "准备探寻下一个卡片")
             }
 
-            // 8. 当前屏幕扫描完毕，拟人化翻页
             if (dispatcherScope.isActive && stateMachine.getCurrentState().isOperating()) {
                 val scrollDeferred = CompletableDeferred<Boolean>()
                 scoutAgent.scrollNextPage(
@@ -244,15 +259,20 @@ class TaskDispatcher(
                     onFailed = { scrollDeferred.complete(false) }
                 )
                 scrollDeferred.await()
-                // 翻页后列表稳定缓冲停顿
                 humanDelay(1500L, 300L)
             }
         }
     }
 
-    /**
-     * 拟人化高斯延迟函数 (模拟人类反应时间随机抖动，抗击机械行为分析)
-     */
+    private fun broadcastStepLog(message: String) {
+        val intent = Intent(DispatcherBroadcasts.ACTION_TASK_STEP_MESSAGE).apply {
+            putExtra(DispatcherBroadcasts.EXTRA_TASK_NAME, "TaskDispatcher")
+            putExtra(DispatcherBroadcasts.EXTRA_STEP_INFO, message)
+            setPackage(context.packageName)
+        }
+        context.sendBroadcast(intent)
+    }
+
     private suspend fun humanDelay(baseMs: Long, varianceMs: Long = 300L) {
         val speedFactor = configRepository.getSpeedFactor()
         val adjustedBase = (baseMs * speedFactor).toLong()

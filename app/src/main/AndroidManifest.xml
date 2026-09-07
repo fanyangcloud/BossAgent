@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 解决 Android 11+ 软件包可见性限制：允许发现并拉起 Boss 直聘 -->
+    <queries>
+        <package android:name="com.hpbr.bosszhipin" />
+    </queries>
+
     <!-- 基础网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -8,11 +13,9 @@
     <!-- 悬浮窗权限 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     
-    <!-- 前台服务基础权限 -->
+    <!-- 前台服务与电池白名单权限 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Android 14+ 必须声明的具体前台服务子类型权限 -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- 电池保活白名单 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
@@ -66,7 +69,7 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <!-- 双模悬浮交互前台服务：适配 Android 14+ specialUse 类型与用途声明 -->
+        <!-- 双模悬浮交互前台服务 -->
         <service
             android:name=".floating.FloatingHUDService"
             android:exported="false"
