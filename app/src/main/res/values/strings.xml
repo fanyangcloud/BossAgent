@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BossAgent</string>
+    <string name="accessibility_service_description">Boss直聘自动化求职助手服务，用于屏幕感知与拟人化交互。</string>
+</resources>
