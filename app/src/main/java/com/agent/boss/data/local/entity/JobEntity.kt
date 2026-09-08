@@ -74,6 +74,7 @@ data class JobEntity(
         const val STATUS_FILTERED_OUT = "FILTERED_OUT"     // 触发本地规则被硬过滤(不耗Token)
         const val STATUS_EVALUATED = "EVALUATED"           // DeepSeek 评估完毕
         const val STATUS_COMMUNICATED = "COMMUNICATED"     // 已经成功打招呼沟通
+        const val STATUS_DELIVERED = "DELIVERED"           // 【新增】已投递/发送附件简历
         const val STATUS_REJECTED = "REJECTED"             // 评估不合适或沟通后放弃
     }
 }

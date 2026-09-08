@@ -672,8 +672,10 @@ class MainActivity : AppCompatActivity() {
                 val start = cal.timeInMillis
                 val end = System.currentTimeMillis()
 
+                // 修改后（最小改动两行）：
                 val chats = db.jobDao().getCommunicatedCountBetween(start, end)
-                Pair(chats, chats)
+                val applied = db.jobDao().getDeliveredCountBetween(start, end)
+                Pair(chats, applied)
             }
 
             chatCountTv.text = todayChat.toString()

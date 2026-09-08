@@ -31,6 +31,10 @@ interface JobDao {
     @Query("SELECT COUNT(1) FROM jobs WHERE status = 'COMMUNICATED' AND updated_at >= :startTime AND updated_at <= :endTime")
     suspend fun getCommunicatedCountBetween(startTime: Long, endTime: Long): Int
 
+    // 【新增】：查询指定时间范围内的真实投递数（兼顾 DELIVERED 和 RESUME_SENT）
+    @Query("SELECT COUNT(1) FROM jobs WHERE status IN ('DELIVERED', 'RESUME_SENT') AND updated_at >= :startTime AND updated_at <= :endTime")
+    suspend fun getDeliveredCountBetween(startTime: Long, endTime: Long): Int
+
     @Query("UPDATE jobs SET status = :status, updated_at = :updatedAt WHERE job_id = :jobId")
     suspend fun updateStatus(jobId: String, status: String, updatedAt: Long = System.currentTimeMillis())
 

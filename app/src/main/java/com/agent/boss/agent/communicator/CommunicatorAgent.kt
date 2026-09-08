@@ -76,18 +76,31 @@ class CommunicatorAgent(
         }
 
         sendAgentLog("▶️ 调度 SendGreetingTask 执行点击沟通与发送...")
+
+        // 使用协程 Deferred 真正等待任务完成
+        val taskDeferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+
         val task = SendGreetingTask(
             greetingText = greetingText,
-            autoNavigateBack = true
+            autoNavigateBack = true,
+            onComplete = { taskDeferred.complete(true) },
+            onError = { taskDeferred.complete(false) }
         )
 
         service.executeTask(task)
 
-        // 4. 登记履约持久化
-        jobRepository.markJobCommunicated(jobId)
-        val todayTotal = jobRepository.getTodayCommunicatedCount()
-        sendAgentLog("🎉 已成功向【$company - $title】发起沟通！今日累计沟通: $todayTotal 次", isHighlight = true)
+        // 核心修复：挂起协程，死等任务真正把文字发出去、并确认送达！
+        val isTaskSuccess = taskDeferred.await()
 
-        onSuccess()
+        if (isTaskSuccess) {
+            // 4. 只有真正送达了，才登记数据库
+            jobRepository.markJobCommunicated(jobId)
+            val todayTotal = jobRepository.getTodayCommunicatedCount()
+            sendAgentLog("🎉 已成功向【$company - $title】发起沟通！今日累计沟通: $todayTotal 次", isHighlight = true)
+            onSuccess()
+        } else {
+            sendAgentLog("❌ 招呼语未能送达，取消本次履约登记")
+            onFailed("SendGreetingTask 执行失败")
+        }
     }
 }
