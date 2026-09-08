@@ -1,6 +1,7 @@
 package com.agent.boss.dispatcher
 
 import android.accessibilityservice.AccessibilityService
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -8,6 +9,7 @@ import android.util.Log
 import com.agent.boss.accessibility.BossAccessibilityService
 import com.agent.boss.accessibility.model.PageScene
 import com.agent.boss.accessibility.model.ScrapedRawJob
+import com.agent.boss.accessibility.util.GestureEngine
 import com.agent.boss.agent.communicator.CommunicatorAgent
 import com.agent.boss.agent.evaluator.EvaluatorAgent
 import com.agent.boss.agent.scout.ScoutAgent
@@ -31,7 +33,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ThreadLocalRandom
 
 /**
- * 任务调度中枢大脑 (强化自愈守护、前置去重与决策闭环版)
+ * 任务调度中枢大脑 (强化自愈守护、WelcomeActivity显式唤醒与前置去重版)
  */
 class TaskDispatcher(
     private val context: Context,
@@ -57,6 +59,16 @@ class TaskDispatcher(
     // 当前感知的视觉场景
     @Volatile
     private var currentScene: PageScene = PageScene.UNKNOWN
+
+    companion object {
+        private const val BOSS_PKG = "com.hpbr.bosszhipin"
+        // 目标公开导出的 WelcomeActivity
+        private const val BOSS_WELCOME_ACTIVITY = "com.hpbr.bosszhipin.module.launcher.WelcomeActivity"
+
+        // 真实 UI 锚点 ID
+        private const val ID_TAB_JOB = "com.hpbr.bosszhipin:id/cl_tab_1"
+        private const val ID_TAB_LABEL = "com.hpbr.bosszhipin:id/tv_tab_label"
+    }
 
     init {
         setupStateListener()
@@ -115,10 +127,13 @@ class TaskDispatcher(
         configRepository.setPaused(false)
 
         orchestratorJob = dispatcherScope.launch {
+            // 启动时显式拉起 WelcomeActivity 并复位到 Boss 直聘首页推荐列表
+            resetToRecommendFeed()
+
             if (warmUpDelayMs > 0) {
                 val totalSeconds = (warmUpDelayMs / 1000).toInt()
                 for (s in totalSeconds downTo 1) {
-                    broadcastStepLog("🚀 正在拉起 Boss 直聘，将在 ${s}s 后开启寻岗...")
+                    broadcastStepLog("🚀 正在就绪 Boss 推荐流，将在 ${s}s 后开启寻岗...")
                     delay(1000L)
                 }
             }
@@ -160,9 +175,6 @@ class TaskDispatcher(
         stop()
     }
 
-    /**
-     * 核心协调主循环
-     */
     private suspend fun runOrchestrationLoop() {
         while (dispatcherScope.isActive) {
             if (stateMachine.getCurrentState() == EngineState.PAUSED) {
@@ -182,11 +194,11 @@ class TaskDispatcher(
                 break
             }
 
-            // 2. 核心守护：扫描前必须确保停留在【推荐职位列表】
+            // 2. 核心守护：扫描前必须确保处于【推荐职位列表】
             ensureInRecommendList()
             safeTransitionTo(EngineState.SCANNING, "扫描当前屏幕卡片")
 
-            // 3. 扫描屏幕可见卡片 (带就绪等待)
+            // 3. 扫描屏幕可见卡片
             var cardAnchors = emptyList<ScoutAgent.CardAnchor>()
             var waitListSeconds = 0
             while (dispatcherScope.isActive && waitListSeconds < 8) {
@@ -197,7 +209,7 @@ class TaskDispatcher(
                 waitListSeconds++
             }
 
-            // 4. 若当前屏幕连一张卡片都没有，上滑翻页
+            // 4. 若当前屏幕没有卡片，上滑翻页
             if (cardAnchors.isEmpty()) {
                 broadcastStepLog("未发现有效卡片，上滑加载新内容...")
                 performScrollFeed(allowTabSwitch = false)
@@ -205,7 +217,7 @@ class TaskDispatcher(
                 continue
             }
 
-            // 5. 【前置秒级去重】：在点击前直接滤掉已看过的岗位
+            // 5. 前置秒级去重：在点击前直接过滤已看过的岗位
             val unvisitedCards = cardAnchors.filter { card ->
                 val key = buildJobKey(card.previewCompany, card.previewTitle)
                 !processedJobKeys.contains(key)
@@ -227,12 +239,11 @@ class TaskDispatcher(
                 }
 
                 val cardKey = buildJobKey(card.previewCompany, card.previewTitle)
-                processedJobKeys.add(cardKey) // 立即锁定，避免同一会话二次点击
+                processedJobKeys.add(cardKey)
 
-                // 点击进入详情前，再次确认处于推荐列表
                 ensureInRecommendList()
 
-                // 阶段一：进入详情页抓取 JD (此时 InspectDetailTask 只进不退)
+                // 阶段一：进入详情页抓取 JD
                 safeTransitionTo(EngineState.INSPECTING, "查看岗位详情")
                 val scrapeDeferred = CompletableDeferred<ScrapedRawJob?>()
 
@@ -249,19 +260,17 @@ class TaskDispatcher(
                     continue
                 }
 
-                // 记录完整 ID
                 processedJobKeys.add(job.resolveJobId())
 
-                // 阶段二：DeepSeek 大脑认知评估
+                // 阶段二：DeepSeek 评估
                 safeTransitionTo(EngineState.THINKING, "DeepSeek 评估中")
                 broadcastStepLog("🧠 DeepSeek 正在评估【${job.companyName} - ${job.title}】...")
                 val evalResult = evaluatorAgent.evaluate(job)
 
                 humanDelay(1000L, 200L)
 
-                // 阶段三：依据决策闭环分流 (使用准确的 evalResult.matchScore)
+                // 阶段三：决策闭环分流
                 if (evalResult.isApproved) {
-                    // 分支 A：契合度通过！在当前的详情页直接发起打招呼
                     safeTransitionTo(EngineState.COMMUNICATING, "发起打招呼破冰")
                     broadcastStepLog("🎯 契合度达标 (${evalResult.matchScore}分)，立即发起破冰沟通...")
 
@@ -274,13 +283,12 @@ class TaskDispatcher(
                     )
 
                     greetDeferred.await()
-                    humanDelay(2000L, 400L)
+                    humanDelay(1500L, 300L)
                 } else {
-                    // 分支 B：契合度不足！
                     broadcastStepLog("⏭️ 契合度不足 (${evalResult.matchScore}分)，跳过该岗位")
                 }
 
-                // 阶段四：无论是沟通完成还是跳过，一律安全退回【推荐职位列表】！
+                // 阶段四：安全退回推荐列表
                 ensureInRecommendList()
                 humanDelay(800L, 200L)
             }
@@ -295,23 +303,95 @@ class TaskDispatcher(
     }
 
     /**
-     * 自愈场景守卫：强制确保当前视口回退并稳定在【推荐职位列表】
+     * 自愈场景守卫：优先后退；后退 2 次仍未脱困，直接启动 WelcomeActivity 复位
      */
-    private suspend fun ensureInRecommendList(maxAttempts: Int = 4) {
+    private suspend fun ensureInRecommendList(maxAttempts: Int = 3) {
         val service = BossAccessibilityService.instance ?: return
         var attempts = 0
 
         while (dispatcherScope.isActive && attempts < maxAttempts) {
-            // 如果场景已经是推荐列表，自愈完成
             if (currentScene == PageScene.RECOMMEND_LIST) {
                 return
             }
 
-            // 如果处于 详情页 或 聊天页，调用全局后退动作
             Log.w(tag, "检测到未在推荐列表 (当前: $currentScene)，执行安全后退自愈 (第 ${attempts + 1} 次)...")
             service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
             humanDelay(800L, 150L)
             attempts++
+        }
+
+        if (currentScene != PageScene.RECOMMEND_LIST) {
+            Log.e(tag, "⚠️ 连续后退未恢复，启动 WelcomeActivity 显式复位至推荐首页")
+            resetToRecommendFeed()
+        }
+    }
+
+    /**
+     * 【显式组件复位】：通过 ComponentName 直接唤醒 WelcomeActivity 并校准 Tab
+     */
+    private suspend fun resetToRecommendFeed() {
+        broadcastStepLog("🔄 正在执行基准线复位：定向拉起 WelcomeActivity...")
+
+        // 显式指定拉起公开的 WelcomeActivity
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            component = ComponentName(BOSS_PKG, BOSS_WELCOME_ACTIVITY)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+        }
+
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(tag, "显式拉起 WelcomeActivity 失败: ${e.message}")
+        }
+
+        // 预留 1200ms 等待 Boss 前台就绪
+        humanDelay(1200L, 200L)
+
+        val service = BossAccessibilityService.instance ?: return
+
+        // 清理顶层多余的子页面（如详情或聊天）
+        var backPopTries = 0
+        while (dispatcherScope.isActive && backPopTries < 3) {
+            val scene = currentScene
+            if (scene == PageScene.JOB_DETAIL || scene == PageScene.CHAT_WINDOW) {
+                Log.d(tag, "复位过程清理顶层页面: $scene，执行返回")
+                service.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+                humanDelay(600L, 100L)
+                backPopTries++
+            } else {
+                break
+            }
+        }
+
+        // UI 锚点校准：校准底部 Tab 1【职位】
+        val root = service.rootInActiveWindow ?: return
+        try {
+            val tab1Nodes = root.findAccessibilityNodeInfosByViewId(ID_TAB_JOB)
+            val tab1 = tab1Nodes?.firstOrNull()
+            if (tab1 != null && !tab1.isSelected) {
+                Log.d(tag, "校准底部导航：点击【职位】Tab")
+                GestureEngine.performClick(service, tab1)
+                humanDelay(600L, 100L)
+            }
+            tab1Nodes?.forEach { it.recycle() }
+
+            // UI 锚点校准：校准顶部子 Tab【推荐】
+            val freshRoot = service.rootInActiveWindow ?: return
+            val tabLabels = freshRoot.findAccessibilityNodeInfosByViewId(ID_TAB_LABEL)
+            val recommendTab = tabLabels?.firstOrNull { it.text?.toString() == "推荐" }
+            if (recommendTab != null && !recommendTab.isSelected) {
+                Log.d(tag, "校准顶部子导航：点击【推荐】")
+                GestureEngine.performClick(service, recommendTab)
+                humanDelay(800L, 150L)
+            }
+            tabLabels?.forEach { it.recycle() }
+            freshRoot.recycle()
+
+            Log.i(tag, "✅ 成功复位并锚定在 Boss 直聘【职位 -> 推荐】流！")
+        } finally {
+            root.recycle()
         }
     }
 
