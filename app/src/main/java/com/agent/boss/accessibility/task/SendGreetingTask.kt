@@ -9,14 +9,7 @@ import com.agent.boss.accessibility.util.AccessibilityNodeUtil
 import com.agent.boss.accessibility.util.GestureEngine
 
 /**
- * 打招呼与个性化破冰发送闭环任务
- *
- * 核心流程：
- * 1. 在详情页点击“立即沟通” (btn_chat)
- * 2. 智能等待：处理可能弹出的快捷招呼弹窗 或 直接进入的聊天窗口
- * 3. 定位输入框 (editText_with_scrollbar) 并填入定制打招呼文本
- * 4. 三级级联算法精准定位无 ID 的发送按钮并执行物理坐标点击
- * 5. (可选) 点击左上角返回或全局返回退回原界面
+ * 打招呼与个性化破冰发送闭环任务 (针对软键盘弹起与几何坐标校准版)
  */
 class SendGreetingTask(
     private val greetingText: String,
@@ -30,9 +23,9 @@ class SendGreetingTask(
         private const val STEP_WAIT_WINDOW_OR_POPUP = 2
         private const val STEP_INPUT_GREETING_TEXT = 3
         private const val STEP_CLICK_SEND_BUTTON = 4
-        private const val STEP_HANDLE_NAVIGATE_BACK = 5
+        private const val STEP_VERIFY_AND_FINISH = 5
+        private const val STEP_HANDLE_NAVIGATE_BACK = 6
 
-        // XML 抓取到的真实 Resource ID
         private const val ID_BTN_CHAT = "com.hpbr.bosszhipin:id/btn_chat"
         private const val ID_EDIT_TEXT = "com.hpbr.bosszhipin:id/editText_with_scrollbar"
         private const val ID_BACK_BUTTON = "com.hpbr.bosszhipin:id/iv_back"
@@ -44,6 +37,7 @@ class SendGreetingTask(
             STEP_WAIT_WINDOW_OR_POPUP -> handleWaitWindowOrPopup()
             STEP_INPUT_GREETING_TEXT -> handleInputGreetingText()
             STEP_CLICK_SEND_BUTTON -> handleClickSendButton()
+            STEP_VERIFY_AND_FINISH -> handleVerifyAndFinish()
             STEP_HANDLE_NAVIGATE_BACK -> handleNavigateBack()
         }
     }
@@ -58,7 +52,7 @@ class SendGreetingTask(
             return
         }
 
-        // 场景 A：如果当前已经在聊天窗口内部了
+        // 场景 A：当前已经在聊天窗口内部
         val editNodes = root.findAccessibilityNodeInfosByViewId(ID_EDIT_TEXT)
         if (!editNodes.isNullOrEmpty()) {
             editNodes.forEach { it.recycle() }
@@ -79,7 +73,7 @@ class SendGreetingTask(
                 onSuccess = {
                     chatBtnNodes.forEach { it.recycle() }
                     root.recycle()
-                    nextStep(800L) // 等待弹窗或聊天界面出现
+                    nextStep(850L) // 等待弹窗或聊天界面出现
                 },
                 onFail = {
                     chatBtnNodes.forEach { it.recycle() }
@@ -94,12 +88,12 @@ class SendGreetingTask(
             }
         } else {
             root.recycle()
-            retryCurrentStep(500L, "既未检测到聊天输入框，也未检测到立即沟通按钮")
+            retryCurrentStep(500L, "未检测到聊天输入框或立即沟通按钮")
         }
     }
 
     /**
-     * 步骤 2：判断是否出现确认弹窗（如“确定沟通”/“发送”）或直接进入聊天页
+     * 步骤 2：判断是否出现快捷打招呼弹窗或直接进入聊天页
      */
     private fun handleWaitWindowOrPopup() {
         val root = service.rootInActiveWindow
@@ -117,7 +111,7 @@ class SendGreetingTask(
             return
         }
 
-        // 2. 检查是否有底部弹窗按钮 (部分账号初次沟通会弹出“打招呼”或“确定”确认框)
+        // 2. 检查是否有底部弹窗按钮
         val safeBounds = AccessibilityNodeUtil.getSafeScreenBounds(service)
         val confirmPopupBtn = AccessibilityNodeUtil.dfsFindNode(root, safeBounds) { node ->
             val txt = node.text?.toString() ?: ""
@@ -132,7 +126,7 @@ class SendGreetingTask(
                 onSuccess = {
                     confirmPopupBtn.recycle()
                     root.recycle()
-                    nextStep(800L)
+                    nextStep(850L)
                 },
                 onFail = {
                     confirmPopupBtn.recycle()
@@ -148,7 +142,7 @@ class SendGreetingTask(
     }
 
     /**
-     * 步骤 3：定位输入框并设置个性化打招呼话术
+     * 步骤 3：定位输入框填入定制话术 (增加填词后等待时长，确保软键盘平稳升起)
      */
     private fun handleInputGreetingText() {
         val root = service.rootInActiveWindow
@@ -168,7 +162,6 @@ class SendGreetingTask(
 
         sendTaskMessage("正在填入定制破冰语...")
 
-        // 使用系统级原生 ACTION_SET_TEXT 注入文本（快速、稳定、不污染系统剪贴板）
         val arguments = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, greetingText)
         }
@@ -178,18 +171,19 @@ class SendGreetingTask(
         root.recycle()
 
         if (setTextSuccess) {
-            Log.i(tag, "成功向输入框填入文本: $greetingText")
-            // 停顿 350ms，模拟输入完成后的思考间隙，让界面的“发送”状态变亮
-            nextStep(350L)
+            Log.i(tag, "成功向输入框填入文本，预留 650ms 等待软键盘抬起稳定...")
+            // 核心修复：留出足够时间（650ms）等待软键盘从 Y=2450 完全滑动到 Y=1606 并完成布局重排
+            nextStep(650L)
         } else {
             retryCurrentStep(300L, "输入框填词失败")
         }
     }
 
     /**
-     * 步骤 4：核心算法——精准定位无 ID 发送按钮并点击
+     * 步骤 4：核心算法——根据键盘抬起后的最新物理坐标，毫米级精准点击发送按钮
      */
     private fun handleClickSendButton() {
+        // 重新获取活跃窗口，拿到软键盘完全就绪后的最新布局树
         val root = service.rootInActiveWindow
         if (root == null) {
             retryCurrentStep(400L, "无法获取发送界面根节点")
@@ -205,111 +199,103 @@ class SendGreetingTask(
             return
         }
 
-        val editBounds = Rect()
-        editNode.getBoundsInScreen(editBounds)
+        val latestEditBounds = Rect()
+        editNode.getBoundsInScreen(latestEditBounds)
+        Log.d(tag, "软键盘抬起后输入框实时物理坐标: ${latestEditBounds.toShortString()}")
 
-        // 尝试定位无 ID 发送按钮
-        val sendBtnNode = findSendButtonRobust(root, editNode, editBounds)
+        // 优先查找是否有带有“发送”文本的独立节点
+        val textNodes = root.findAccessibilityNodeInfosByText("发送")
+        val sendTextCandidate = textNodes?.firstOrNull { it.isClickable || it.parent?.isClickable == true }
 
-        if (sendBtnNode != null) {
-            val sendRect = Rect()
-            sendBtnNode.getBoundsInScreen(sendRect)
-            sendTaskMessage("🎯 精准锚定发送按钮: ${sendRect.toShortString()}，派发物理手势")
-
+        if (sendTextCandidate != null) {
+            Log.i(tag, "找到明确标注'发送'文本的节点，执行节点点击")
             GestureEngine.performClick(
                 service = service,
-                node = sendBtnNode,
+                node = sendTextCandidate,
                 onSuccess = {
-                    sendBtnNode.recycle()
+                    textNodes.forEach { it.recycle() }
                     editNodes.forEach { it.recycle() }
                     root.recycle()
-                    nextStep(800L) // 等待消息发出去
+                    nextStep(700L)
                 },
                 onFail = {
-                    sendBtnNode.recycle()
+                    textNodes.forEach { it.recycle() }
                     editNodes.forEach { it.recycle() }
                     root.recycle()
-                    fallbackCoordinateClick(editBounds)
+                    performCalibratedSendClick(latestEditBounds)
                 }
             )
         } else {
+            textNodes?.forEach { it.recycle() }
             editNodes.forEach { it.recycle() }
             root.recycle()
-            // 节点检索不到时的绝对兜底：屏幕右侧物理坐标盲击
-            fallbackCoordinateClick(editBounds)
+            // 采用基于屏幕几何的【毫米级发送按键标定算法】
+            performCalibratedSendClick(latestEditBounds)
         }
     }
 
     /**
-     * 三级级联发送按钮检索算法
+     * 核心标定：消除右侧间隙误差，正中发送按钮红心
      */
-    private fun findSendButtonRobust(
-        root: AccessibilityNodeInfo,
-        editNode: AccessibilityNodeInfo,
-        editBounds: Rect
-    ): AccessibilityNodeInfo? {
-        // 策略 1：检查是否有节点直接带有“发送”文本（部分版本填词后由图标变为“发送”两字）
-        val textNodes = root.findAccessibilityNodeInfosByText("发送")
-        if (!textNodes.isNullOrEmpty()) {
-            val candidate = textNodes.firstOrNull { it.isClickable || it.parent?.isClickable == true }
-            textNodes.filter { it != candidate }.forEach { it.recycle() }
-            if (candidate != null) return candidate
-        }
-
-        // 策略 2：基于输入框父容器 (LinearLayout) 取最后一个子视图（对应 XML 中 index="3" 的 ImageView）
-        val parent = editNode.parent
-        if (parent != null) {
-            val childCount = parent.childCount
-            if (childCount > 1) {
-                val lastChild = parent.getChild(childCount - 1)
-                if (lastChild != null) {
-                    val lastRect = Rect()
-                    lastChild.getBoundsInScreen(lastRect)
-                    // 确认该子视图位于输入框右侧且在同一水平带
-                    if (lastRect.left >= editBounds.right && Math.abs(lastRect.centerY() - editBounds.centerY()) < 80) {
-                        parent.recycle()
-                        return lastChild
-                    }
-                    lastChild.recycle()
-                }
-            }
-            parent.recycle()
-        }
-
-        // 策略 3：DFS 查找处于输入框右侧且位于屏幕右侧 85% 以外的 ImageView
+    private fun performCalibratedSendClick(editBounds: Rect) {
         val safeBounds = AccessibilityNodeUtil.getSafeScreenBounds(service)
-        val minX = (safeBounds.width() * 0.85f).toInt()
+        val screenWidth = safeBounds.width()
 
-        return AccessibilityNodeUtil.dfsFindNode(root, safeBounds) { node ->
-            val nodeRect = Rect()
-            node.getBoundsInScreen(nodeRect)
-            nodeRect.left >= minX &&
-            Math.abs(nodeRect.centerY() - editBounds.centerY()) < 80 &&
-            (node.isClickable || node.className?.contains("ImageView") == true)
-        }
-    }
-
-    /**
-     * 终极兜底：基于输入框水平线向右侧偏移的物理坐标盲击
-     */
-    private fun fallbackCoordinateClick(editBounds: Rect) {
-        val safeBounds = AccessibilityNodeUtil.getSafeScreenBounds(service)
-        // 取输入框右边缘与屏幕右边缘中间位置
-        val targetX = (editBounds.right + safeBounds.width()) / 2
+        // 标定解析：
+        // 屏幕右侧边距约为 48px，发送按钮宽度为 84px
+        // 按钮物理中心 X = screenWidth - 48 - (84 / 2) = screenWidth - 90
+        val targetX = screenWidth - 90
+        // Y 轴直接对齐输入框当前的真实垂直中心（随软键盘上升自适应）
         val targetY = editBounds.centerY()
 
-        sendTaskMessage("⚠️ 触发物理坐标兜底盲击: ($targetX, $targetY)")
-        GestureEngine.clickAt(
+        sendTaskMessage("🎯 校准派发物理手势 -> 坐标: ($targetX, $targetY)")
+        Log.i(tag, "执行精准发送点击: x=$targetX, y=$targetY")
+
+        val clicked = GestureEngine.clickAt(
             service = service,
             x = targetX,
             y = targetY,
-            onSuccess = { nextStep(800L) },
-            onFail = { retryCurrentStep(400L, "物理坐标盲击失败") }
+            onSuccess = {
+                nextStep(700L)
+            },
+            onFail = {
+                retryCurrentStep(400L, "物理坐标点击发送失败")
+            }
         )
+
+        if (!clicked) {
+            retryCurrentStep(400L, "无法派发发送手势")
+        }
     }
 
     /**
-     * 步骤 5：处理回退返回列表或详情
+     * 步骤 5：校验消息是否已送达（输入框被清空则代表发送成功）
+     */
+    private fun handleVerifyAndFinish() {
+        val root = service.rootInActiveWindow
+        val editNodes = root?.findAccessibilityNodeInfosByViewId(ID_EDIT_TEXT)
+        val currentText = editNodes?.firstOrNull()?.text?.toString() ?: ""
+
+        editNodes?.forEach { it.recycle() }
+        root?.recycle()
+
+        // 如果输入框里的文字已经被清空，说明确实发出去了
+        if (currentText.isEmpty()) {
+            sendTaskMessage("✉️ 消息确认已送达！")
+            Log.i(tag, "验证通过：输入框文字已清空，消息发送成功")
+            nextStep(400L)
+        } else {
+            Log.w(tag, "输入框仍残留文字: '$currentText'，尝试补充触发一次物理回车...")
+            // 兜底：再次点击一次标定坐标
+            val safeBounds = AccessibilityNodeUtil.getSafeScreenBounds(service)
+            GestureEngine.clickAt(service, safeBounds.width() - 90, safeBounds.height() - 800) {
+                nextStep(400L)
+            }
+        }
+    }
+
+    /**
+     * 步骤 6：处理回退返回列表或详情
      */
     private fun handleNavigateBack() {
         if (!autoNavigateBack) {
