@@ -29,6 +29,12 @@ class SendGreetingTask(
         private const val STEP_VERIFY_AND_FINISH = 5
         private const val STEP_HANDLE_NAVIGATE_BACK = 6
 
+        // 🌟【新增】：设计基准分辨率 (1220 x 2712) 及基准偏移常量
+        private const val BASE_SCREEN_WIDTH = 1220f
+        private const val BASE_SCREEN_HEIGHT = 2712f
+        private const val BASE_OFFSET_X = 85f
+        private const val BASE_OFFSET_Y = 42f
+
         private const val ID_BTN_CHAT = "com.hpbr.bosszhipin:id/btn_chat"
         private const val ID_EDIT_TEXT = "com.hpbr.bosszhipin:id/editText_with_scrollbar"
         private const val ID_EMOTION_VIEW = "com.hpbr.bosszhipin:id/mEmotionView"
@@ -216,7 +222,7 @@ class SendGreetingTask(
         }
 
         emotionNodes?.forEach { it.recycle() }
-        editNodes.forEach { it.recycle() }
+        editNodes?.forEach { it.recycle() }
         root.recycle()
 
         if (sendNodeClicked) {
@@ -224,19 +230,24 @@ class SendGreetingTask(
             return
         }
 
-        val safeBounds = AccessibilityNodeUtil.getSafeScreenBounds(service)
-        val screenWidth = safeBounds.width()
+        // 🌟【修改后】：获取屏幕真实物理尺寸，并基于 1220x2712 基准等比缩放
+        val screenBounds = AccessibilityNodeUtil.getScreenBounds(service)
+        val screenWidth = if (screenBounds.width() > 0) screenBounds.width() else 1220
+        val screenHeight = if (screenBounds.height() > 0) screenBounds.height() else 2712
+
+        val dynamicOffsetX = ((screenWidth.toFloat() / BASE_SCREEN_WIDTH) * BASE_OFFSET_X).toInt()
+        val dynamicOffsetY = ((screenHeight.toFloat() / BASE_SCREEN_HEIGHT) * BASE_OFFSET_Y).toInt()
 
         val targetX = if (hasEmotionNode && emotionBounds.right > 0) {
             emotionBounds.right + (screenWidth - emotionBounds.right) / 2
         } else {
-            screenWidth - 85
+            screenWidth - dynamicOffsetX
         }
 
         val targetY = if (hasEmotionNode && emotionBounds.centerY() > 0) {
             emotionBounds.centerY()
         } else {
-            editBounds.bottom - 42
+            editBounds.bottom - dynamicOffsetY
         }
 
         sendTaskMessage("🎯 点击发送按钮 -> 标定坐标: ($targetX, $targetY) [第 $sendClickAttempts 次]")
@@ -346,5 +357,10 @@ class SendGreetingTask(
     override fun failedTask(reason: String) {
         super.failedTask(reason)
         onError?.invoke(reason)
+    }
+
+    // 🌟【新增：被抢占强杀时释放 Deferred，防止 TaskDispatcher 死等】
+    override fun onForceStopped() {
+        onError?.invoke("打招呼任务被强制终止")
     }
 }

@@ -11,7 +11,8 @@ import com.agent.boss.accessibility.util.GestureEngine
  */
 class InspectDetailTask(
     private val cardClickBounds: Rect? = null,
-    private val onJobScraped: ((ScrapedRawJob) -> Unit)? = null
+    private val onJobScraped: ((ScrapedRawJob) -> Unit)? = null,
+    private val onError: ((String) -> Unit)? = null // 🌟【新增错误回调】
 ) : BaseAutomationTask() {
 
     private val tag = "InspectDetailTask"
@@ -126,5 +127,17 @@ class InspectDetailTask(
         val text = nodes[0].text?.toString()?.trim() ?: ""
         nodes.forEach { it.recycle() }
         return text
+    }
+
+
+    // 🌟【新增：失败时唤醒 Deferred】
+    override fun failedTask(reason: String) {
+        super.failedTask(reason)
+        onError?.invoke(reason)
+    }
+
+    // 🌟【新增：强杀时释放 Deferred】
+    override fun onForceStopped() {
+        onError?.invoke("任务被强制终止")
     }
 }

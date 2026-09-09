@@ -16,7 +16,9 @@ import java.util.concurrent.ThreadLocalRandom
  * 3. 规避 Boss 直聘大量 TextView clickable=false 的限制，全面使用物理坐标手势点击。
  */
 class ScrollFeedTask(
-    private val allowTabSwitch: Boolean = true
+    private val allowTabSwitch: Boolean = true,
+    private val onCompleted: (() -> Unit)? = null, // 🌟【新增完成回调】
+    private val onFailed: ((String) -> Unit)? = null  // 🌟【新增失败回调】
 ) : BaseAutomationTask() {
 
     private val tag = "ScrollFeedTask"
@@ -189,5 +191,23 @@ class ScrollFeedTask(
             node.recycle()
         }
         return target
+    }
+
+
+    // 🌟【新增：完成时唤醒 Deferred】
+    override fun finishTask() {
+        super.finishTask()
+        onCompleted?.invoke()
+    }
+
+    // 🌟【新增：失败时唤醒 Deferred】
+    override fun failedTask(reason: String) {
+        super.failedTask(reason)
+        onFailed?.invoke(reason)
+    }
+
+    // 🌟【新增：强杀时释放 Deferred】
+    override fun onForceStopped() {
+        onFailed?.invoke("任务被强制终止")
     }
 }

@@ -240,7 +240,8 @@ class ScoutAgent(context: Context) : BaseAgent(context, "ScoutAgent") {
                 val cleanedJd = JDContentCleaner.clean(rawJob.jobDescription)
                 val finalJob = rawJob.copy(jobDescription = cleanedJd)
                 onSuccess(finalJob)
-            }
+            },
+            onError = onFailed // 🌟【新增透传错误回调】
         )
         service.executeTask(task)
     }
@@ -257,7 +258,11 @@ class ScoutAgent(context: Context) : BaseAgent(context, "ScoutAgent") {
         }
 
         sendAgentLog("当前屏幕已检索完毕，拟人化上滑加载新岗位...")
-        val task = ScrollFeedTask(allowTabSwitch = allowTabSwitch)
+        val task = ScrollFeedTask(
+            allowTabSwitch = allowTabSwitch,
+            onCompleted = onCompleted, // 🌟【新增透传成功回调】
+            onFailed = onFailed        // 🌟【新增透传失败回调】
+        )
         service.executeTask(task)
     }
 }

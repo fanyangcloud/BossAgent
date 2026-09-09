@@ -197,7 +197,12 @@ abstract class BaseAutomationTask {
     }
 
     /**
-     * 外部静默强杀接口（不触发失败回调，防止引起外部重试循环）
+     * 子类可覆写：当任务被强制终止时，唤醒并解脱挂起的协程 Deferred
+     */
+    open fun onForceStopped() {}
+
+    /**
+     * 外部静默强杀接口
      */
     fun forceStopSilently() {
         if (isTaskRunning) {
@@ -205,6 +210,7 @@ abstract class BaseAutomationTask {
             isTaskRunning = false
             stopTimeoutMonitor()
             mainHandler.removeCallbacksAndMessages(null)
+            onForceStopped() // 🌟【新增】：强杀时触发子类兜底，避免协程悬挂死锁
         }
     }
 
