@@ -216,7 +216,13 @@ class HistoryRecordActivity : AppCompatActivity() {
             holder.companyTv.text = "${item.companyName} · ${item.city.ifBlank { "全国" }}"
 
             // 状态标签
+            // 状态标签
             when (item.status) {
+                // 🌟【新增/合并】：支持 STATUS_DELIVERED 显示高质感绿色标签
+                JobEntity.STATUS_DELIVERED -> {
+                    holder.statusChip.text = "已投递"
+                    holder.statusChip.background = getChipDrawable("#2E7D32")
+                }
                 JobEntity.STATUS_COMMUNICATED -> {
                     holder.statusChip.text = "已打招呼"
                     holder.statusChip.background = getChipDrawable("#2E7D32")

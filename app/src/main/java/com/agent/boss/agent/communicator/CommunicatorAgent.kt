@@ -94,9 +94,10 @@ class CommunicatorAgent(
 
         if (isTaskSuccess) {
             // 4. 只有真正送达了，才登记数据库
-            jobRepository.markJobCommunicated(jobId)
+            // 🌟【修改】：由 markJobCommunicated 改为 markJobDelivered，推进至已投递状态
+            jobRepository.markJobDelivered(jobId)
             val todayTotal = jobRepository.getTodayCommunicatedCount()
-            sendAgentLog("🎉 已成功向【$company - $title】发起沟通！今日累计沟通: $todayTotal 次", isHighlight = true)
+            sendAgentLog("🎉 已成功向【$company - $title】发起沟通并投递！今日累计: $todayTotal 次", isHighlight = true)
             onSuccess()
         } else {
             sendAgentLog("❌ 招呼语未能送达，取消本次履约登记")

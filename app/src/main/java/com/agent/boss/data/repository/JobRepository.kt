@@ -56,6 +56,11 @@ class JobRepository(private val db: AppDatabase) {
         jobDao.updateStatus(jobId, JobEntity.STATUS_COMMUNICATED)
     }
 
+    // 🌟【新增】：将岗位标记为已完成投递流转
+    suspend fun markJobDelivered(jobId: String) = withContext(Dispatchers.IO) {
+        jobDao.updateStatus(jobId, JobEntity.STATUS_DELIVERED)
+    }
+
     suspend fun getTodayCommunicatedCount(): Int = withContext(Dispatchers.IO) {
         val (start, end) = getTodayTimeRange()
         jobDao.getCommunicatedCountBetween(start, end)

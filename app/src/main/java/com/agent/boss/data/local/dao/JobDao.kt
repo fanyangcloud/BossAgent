@@ -25,13 +25,15 @@ interface JobDao {
     @Query("SELECT EXISTS(SELECT 1 FROM jobs WHERE job_id = :jobId)")
     suspend fun isJobExists(jobId: String): Boolean
 
-    @Query("SELECT EXISTS(SELECT 1 FROM jobs WHERE job_id = :jobId AND status = 'COMMUNICATED')")
+    // 🌟【修改】：已投递 (DELIVERED) 的岗位同样视为已沟通过，防止次日重复扫描发起
+    @Query("SELECT EXISTS(SELECT 1 FROM jobs WHERE job_id = :jobId AND status IN ('COMMUNICATED', 'DELIVERED'))")
     suspend fun isJobCommunicated(jobId: String): Boolean
 
-    @Query("SELECT COUNT(1) FROM jobs WHERE status = 'COMMUNICATED' AND updated_at >= :startTime AND updated_at <= :endTime")
+    // 🌟【修改】：沟通总量统计兼顾 COMMUNICATED 与 DELIVERED，确保每日打招呼上限配额准确扣减
+    @Query("SELECT COUNT(1) FROM jobs WHERE status IN ('COMMUNICATED', 'DELIVERED') AND updated_at >= :startTime AND updated_at <= :endTime")
     suspend fun getCommunicatedCountBetween(startTime: Long, endTime: Long): Int
 
-    // 【新增】：查询指定时间范围内的真实投递数（兼顾 DELIVERED 和 RESUME_SENT）
+    // 维持原样：专门统计投递成功的数量
     @Query("SELECT COUNT(1) FROM jobs WHERE status IN ('DELIVERED', 'RESUME_SENT') AND updated_at >= :startTime AND updated_at <= :endTime")
     suspend fun getDeliveredCountBetween(startTime: Long, endTime: Long): Int
 
