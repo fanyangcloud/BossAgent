@@ -45,7 +45,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 /**
- * 自动化求职助手 - 主控制台 (全新清新卡片风)
+ * 鹿鹿 (Lulu) - 主控制台 (治愈系卡片风)
  */
 class MainActivity : AppCompatActivity() {
 
@@ -64,12 +64,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deliveryCountTv: TextView
     private lateinit var contactCountTv: TextView
 
-    // 颜色规范
+    // 🌟 颜色规范：告别高饱和冰冷工程蓝，换成鹿鹿元气暖橙配色
     private val colorBg = Color.parseColor("#F5F7FA")
     private val colorCard = Color.WHITE
     private val colorCardStroke = Color.parseColor("#E4E9F0")
-    private val colorPrimary = Color.parseColor("#1B72E8")
-    private val colorPrimarySoft = Color.parseColor("#EBF3FD")
+    private val colorPrimary = Color.parseColor("#FF7043")      // 鹿鹿暖橙色
+    private val colorPrimarySoft = Color.parseColor("#FFF0EB")  // 柔和微暖底色
     private val colorTextMain = Color.parseColor("#1C2430")
     private val colorTextSub = Color.parseColor("#748398")
     private val colorSuccess = Color.parseColor("#2E7D32")
@@ -159,7 +159,8 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(colorBg)
 
             val title = TextView(this@MainActivity).apply {
-                text = "自动化求职助手"
+                // 🌟 微调：拟人化标题
+                text = "🦌 鹿鹿 · 求职搭子"
                 textSize = 22f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(colorTextMain)
@@ -182,7 +183,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 并排双列卡片：无障碍权限 + 悬浮窗权限 (矢量图标 + 居中对齐)
+     * 并排双列卡片：无障碍权限 + 悬浮窗权限 (保留核心技术词，拟人化副标)
      */
     private fun createPermissionCardsGrid(): View {
         val row = LinearLayout(this).apply {
@@ -193,19 +194,19 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // 左卡片：无障碍权限 (使用自绘纯白矢量人形图标，不再依赖 Emoji，彻底解决隐形与错位)
+        // 🌟 左卡片：无障碍权限
         val leftCard = createSinglePermCard(
             iconDrawable = createAccessibilityIcon(),
-            title = "无障碍权限",
-            subtitle = "用于模拟点击、滑动等操作",
+            title = "无障碍权限 🐾",
+            subtitle = "用于小鹿替你在前面敲门开路",
             onAction = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
         ).also { accessibilityBtn = it.second }
 
-        // 右卡片：悬浮窗权限 (使用自绘纯白矢量多任务窗口图标)
+        // 🌟 右卡片：悬浮窗权限
         val rightCard = createSinglePermCard(
             iconDrawable = createOverlayIcon(),
-            title = "悬浮窗权限",
-            subtitle = "用于显示悬浮控制面板",
+            title = "悬浮窗权限 💭",
+            subtitle = "用于聊天时小鹿在旁边悄悄支招",
             onAction = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     startActivity(
@@ -243,7 +244,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp2px(12), dp2px(20), dp2px(12), dp2px(18))
         }
 
-        // 圆形蓝色底图标容器
+        // 圆形暖色底图标容器
         val iconContainer = FrameLayout(this).apply {
             val sz = dp2px(54)
             layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
@@ -356,7 +357,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         statusTextTv = TextView(this).apply {
-            text = "待启动"
+            // 🌟 微调：默认小鹿待命
+            text = "小鹿待命"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorPrimary)
@@ -401,7 +403,8 @@ class MainActivity : AppCompatActivity() {
 
         // 下半段：启动任务主按钮
         mainActionButton = TextView(this).apply {
-            text = "▶ 启动任务"
+            // 🌟 微调：拟人化操作文案
+            text = "🦌 启动鹿鹿 · 开始探路"
             textSize = 16f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
@@ -426,7 +429,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 四列数据看板 (已约面试、今日沟通、今日投递、联系交换)
+     * 四列数据看板 (已约面试、今日沟通、今日投递、联系交换 - 100% 保持业务直觉)
      */
     private fun createDataDashboardCard(): View {
         val card = LinearLayout(this).apply {
@@ -468,7 +471,6 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        // 固定高度和宽度，避免不同 Emoji 固有 Bounds 导致的水平参差不齐
         val iconTv = TextView(this).apply {
             text = icon
             textSize = 20f
@@ -638,7 +640,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateEngineStateUi(state: EngineState) {
-        statusTextTv.text = state.title
+        // 🌟 微调：空闲时显示拟人化文案
+        if (state == EngineState.IDLE) {
+            statusTextTv.text = "小鹿待命 (就绪)"
+        } else {
+            statusTextTv.text = state.title
+        }
+
         try {
             statusTextTv.setTextColor(Color.parseColor(state.indicatorColorHex))
         } catch (e: Exception) {
@@ -646,13 +654,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (state.isOperating()) {
-            mainActionButton.text = "⏸ 暂停任务"
+            // 🌟 微调：暂停提示
+            mainActionButton.text = "☕ 鹿鹿喝口水 (暂停)"
             mainActionButton.background = GradientDrawable().apply {
                 cornerRadius = dp2px(10).toFloat()
                 setColor(Color.parseColor("#EF6C00")) // 橙色暂停
             }
         } else {
-            mainActionButton.text = "▶ 启动任务"
+            // 🌟 微调：启动提示
+            mainActionButton.text = "🦌 启动鹿鹿 · 开始探路"
             mainActionButton.background = GradientDrawable().apply {
                 cornerRadius = dp2px(10).toFloat()
                 setColor(colorPrimary)
@@ -672,7 +682,6 @@ class MainActivity : AppCompatActivity() {
                 val start = cal.timeInMillis
                 val end = System.currentTimeMillis()
 
-                // 修改后（最小改动两行）：
                 val chats = db.jobDao().getCommunicatedCountBetween(start, end)
                 val applied = db.jobDao().getDeliveredCountBetween(start, end)
                 Pair(chats, applied)
@@ -751,7 +760,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 弹出设置选项弹窗 (修复 Emoji 与中文的垂直对齐错位)
+     * 弹出设置选项弹窗
      */
     private fun showSettingsDialog() {
         val dialog = Dialog(this)
@@ -766,7 +775,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val title = TextView(this).apply {
-            text = "智能体核心配置"
+            // 🌟 微调：弹窗标题
+            text = "🎒 鹿鹿的百宝袋 (核心配置)"
             textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorTextMain)
@@ -866,11 +876,8 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    // ==================== 自绘高质感矢量图标 ====================
+    // ==================== 自绘高质感矢量图标 (保持不变) ====================
 
-    /**
-     * 自绘国际通用纯白无障碍 (Accessibility) 人形矢量图标
-     */
     private fun createAccessibilityIcon(): Drawable {
         return object : Drawable() {
             private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -896,21 +903,17 @@ class MainActivity : AppCompatActivity() {
 
                 strokePaint.strokeWidth = size * 0.12f
 
-                // 头部
                 val headRadius = size * 0.13f
                 val headCenterY = startY + headRadius
                 canvas.drawCircle(cx, headCenterY, headRadius, fillPaint)
 
-                // 展开的双臂
                 val armY = startY + size * 0.40f
                 val armSpan = size * 0.42f
                 canvas.drawLine(cx - armSpan, armY, cx + armSpan, armY, strokePaint)
 
-                // 躯干
                 val torsoBottomY = startY + size * 0.66f
                 canvas.drawLine(cx, armY, cx, torsoBottomY, strokePaint)
 
-                // 左腿与右腿
                 val legSpan = size * 0.30f
                 val legBottomY = startY + size
                 canvas.drawLine(cx, torsoBottomY, cx - legSpan, legBottomY, strokePaint)
@@ -932,9 +935,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 自绘纯白悬浮多任务窗口 (Floating Window) 矢量图标
-     */
     private fun createOverlayIcon(): Drawable {
         return object : Drawable() {
             private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -961,7 +961,6 @@ class MainActivity : AppCompatActivity() {
                 strokePaint.strokeWidth = size * 0.10f
                 val corner = size * 0.12f
 
-                // 主背景窗口 (大卡片轮廓)
                 val mainRect = RectF(
                     left,
                     top,
@@ -970,24 +969,19 @@ class MainActivity : AppCompatActivity() {
                 )
                 canvas.drawRoundRect(mainRect, corner, corner, strokePaint)
 
-                // 主窗口顶部标题栏分割线
                 val barY = top + size * 0.22f
                 canvas.drawLine(left + size * 0.08f, barY, left + size * 0.74f, barY, strokePaint)
 
-                // 前景小悬浮窗 (右下角画中画)
                 val floatRect = RectF(
                     left + size * 0.44f,
                     top + size * 0.40f,
                     left + size,
                     top + size * 0.96f
                 )
-                // 先用主题色填充内部，遮挡背景窗口线条
                 fillPaint.color = colorPrimary
                 canvas.drawRoundRect(floatRect, corner, corner, fillPaint)
-                // 绘制小窗口轮廓
                 strokePaint.strokeWidth = size * 0.09f
                 canvas.drawRoundRect(floatRect, corner, corner, strokePaint)
-                // 内部小亮点
                 fillPaint.color = Color.WHITE
                 canvas.drawCircle(floatRect.centerX(), floatRect.centerY(), size * 0.06f, fillPaint)
             }
