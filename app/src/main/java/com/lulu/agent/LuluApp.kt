@@ -21,7 +21,7 @@ import com.lulu.agent.llm.prompt.PromptManager
 /**
  * 全局 Application：统一依赖图谱装配
  */
-class BossApp : Application() {
+class LuluApp : Application() {
 
    private val tag = "LuluApp"
 

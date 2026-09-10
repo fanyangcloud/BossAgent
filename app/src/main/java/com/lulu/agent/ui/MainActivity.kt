@@ -31,7 +31,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import com.lulu.agent.BossApp
+import com.lulu.agent.LuluApp
 import com.lulu.agent.accessibility.BossAccessibilityService
 import com.lulu.agent.dispatcher.contract.DispatcherBroadcasts
 import com.lulu.agent.dispatcher.fsm.EngineState
@@ -660,7 +660,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadDashboardData(app: BossApp) {
+    private fun loadDashboardData(app: LuluApp) {
         lifecycleScope.launch {
             val (todayChat, todayApplied) = withContext(Dispatchers.IO) {
                 val db = app.database
