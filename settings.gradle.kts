@@ -18,5 +18,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BossAgent"
+rootProject.name = "LuluAgent"
 include(":app")

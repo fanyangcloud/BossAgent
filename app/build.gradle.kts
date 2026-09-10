@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.agent.boss"
+    namespace = "com.lulu.agent"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.agent.boss"
+        applicationId = "com.lulu.agent"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
