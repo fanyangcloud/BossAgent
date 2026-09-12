@@ -148,6 +148,6 @@ app/src/main/java/com/agent/boss/
 - **UI Architecture**: Jetpack & Material Components
 - **Automation**: Android Accessibility APIs
 
-<div align="center">
+<div>
   <sub>Made with ❤️ by Developers, for Every Job Hunter. 祝每一位求职者都能早日斩获心仪 Offer！</sub>
 </div>

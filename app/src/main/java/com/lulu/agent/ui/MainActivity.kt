@@ -5,14 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.Paint
-import android.graphics.PixelFormat
-import android.graphics.RectF
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -22,7 +16,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RelativeLayout
 import android.widget.ScrollView
@@ -45,7 +38,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 /**
- * 鹿鹿 (Lulu) - 主控制台 (治愈系卡片风)
+ * 鹿鹿 (Lulu) - 主控制台 (极简纯净 · 治愈温润风)
  */
 class MainActivity : AppCompatActivity() {
 
@@ -64,15 +57,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deliveryCountTv: TextView
     private lateinit var contactCountTv: TextView
 
-    // 🌟 颜色规范：告别高饱和冰冷工程蓝，换成鹿鹿元气暖橙配色
-    private val colorBg = Color.parseColor("#F5F7FA")
+    // 🌟 纯净视觉色盘：低饱和温润暖杏橙 + 极简淡雅灰
+    private val colorBg = Color.parseColor("#F8F9FB")
     private val colorCard = Color.WHITE
-    private val colorCardStroke = Color.parseColor("#E4E9F0")
-    private val colorPrimary = Color.parseColor("#FF7043")      // 鹿鹿暖橙色
-    private val colorPrimarySoft = Color.parseColor("#FFF0EB")  // 柔和微暖底色
-    private val colorTextMain = Color.parseColor("#1C2430")
-    private val colorTextSub = Color.parseColor("#748398")
-    private val colorSuccess = Color.parseColor("#2E7D32")
+    private val colorCardStroke = Color.parseColor("#F0F2F5")
+    private val colorPrimary = Color.parseColor("#FA6542")       // 鹿鹿治愈暖杏色
+    private val colorPrimarySoft = Color.parseColor("#FFF4F0")   // 极淡微桃粉
+    private val colorTextMain = Color.parseColor("#1F2329")      // 高阶石板黑
+    private val colorTextSub = Color.parseColor("#8F959E")       // 优雅次级灰
+    private val colorSuccess = Color.parseColor("#2BA471")       // 清新薄荷绿
+    private val colorSuccessSoft = Color.parseColor("#EBF6F1")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +85,7 @@ class MainActivity : AppCompatActivity() {
         unregisterReceiver(statusReceiver)
     }
 
-    // ==================== 1:1 动态纯代码构建视图 ====================
+    // ==================== 极简纯净纯代码布局 ====================
 
     private fun buildContentView(): View {
         val root = RelativeLayout(this).apply {
@@ -102,7 +96,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // 1. 顶部固定标题栏
+        // 1. 顶部标题栏
         val topBar = createTopBar().apply { id = View.generateViewId() }
         val topBarParams = RelativeLayout.LayoutParams(
             RelativeLayout.LayoutParams.MATCH_PARENT,
@@ -110,15 +104,15 @@ class MainActivity : AppCompatActivity() {
         ).apply { addRule(RelativeLayout.ALIGN_PARENT_TOP) }
         root.addView(topBar, topBarParams)
 
-        // 2. 底部固定导航栏
+        // 2. 底部轻量导航栏
         val bottomNav = createBottomNav().apply { id = View.generateViewId() }
         val bottomNavParams = RelativeLayout.LayoutParams(
             RelativeLayout.LayoutParams.MATCH_PARENT,
-            dp2px(64)
+            dp2px(60)
         ).apply { addRule(RelativeLayout.ALIGN_PARENT_BOTTOM) }
         root.addView(bottomNav, bottomNavParams)
 
-        // 3. 中间可滚动卡片流
+        // 3. 中间可滚动卡片区
         val scrollView = ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
@@ -133,12 +127,12 @@ class MainActivity : AppCompatActivity() {
 
         val contentLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            val pad = dp2px(16)
-            setPadding(pad, dp2px(10), pad, dp2px(20))
+            val pad = dp2px(18)
+            setPadding(pad, dp2px(6), pad, dp2px(24))
         }
 
         // 核心板块装配
-        contentLayout.addView(createPermissionCardsGrid())
+        contentLayout.addView(createPreparednessCard())
         contentLayout.addView(createRunningStatusCard())
         contentLayout.addView(createDataDashboardCard())
 
@@ -149,64 +143,112 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 顶部标题栏 + 右侧设置齿轮
+     * 顶部标题栏：温润大标题与治愈问候
      */
     private fun createTopBar(): View {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp2px(20), dp2px(42), dp2px(20), dp2px(14))
-            setBackgroundColor(colorBg)
+            setPadding(dp2px(20), dp2px(42), dp2px(20), dp2px(12))
 
-            val title = TextView(this@MainActivity).apply {
-                // 🌟 微调：拟人化标题
-                text = "🦌 鹿鹿 · 求职搭子"
-                textSize = 22f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(colorTextMain)
-                includeFontPadding = false
+            val titleCol = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
+            val title = TextView(this@MainActivity).apply {
+                text = "鹿鹿 · 求职搭子 🦌"
+                textSize = 21f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(colorTextMain)
+                includeFontPadding = false
+            }
+
+            val subtitle = TextView(this@MainActivity).apply {
+                text = "深呼吸，今天也会遇到懂你的好伯乐"
+                textSize = 12f
+                setTextColor(colorTextSub)
+                includeFontPadding = false
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp2px(4) }
+            }
+
+            titleCol.addView(title)
+            titleCol.addView(subtitle)
+
+            // 右上角小齿轮
             val gearBtn = TextView(this@MainActivity).apply {
                 text = "⚙️"
-                textSize = 20f
+                textSize = 18f
                 gravity = Gravity.CENTER
                 includeFontPadding = false
-                layoutParams = LinearLayout.LayoutParams(dp2px(32), dp2px(32))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.WHITE)
+                    setStroke(dp2px(1), colorCardStroke)
+                }
+                val sz = dp2px(36)
+                layoutParams = LinearLayout.LayoutParams(sz, sz)
                 setOnClickListener { showSettingsDialog() }
             }
 
-            addView(title)
+            addView(titleCol)
             addView(gearBtn)
         }
     }
 
     /**
-     * 并排双列卡片：无障碍权限 + 悬浮窗权限 (保留核心技术词，拟人化副标)
+     * 【重构核心】：小鹿准备清单（将原先占地巨大的双卡片合为清爽的列表）
      */
-    private fun createPermissionCardsGrid(): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+    private fun createPreparednessCard(): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = createCardDrawable()
+            setPadding(dp2px(16), dp2px(16), dp2px(16), dp2px(16))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            ).apply { topMargin = dp2px(10) }
         }
 
-        // 🌟 左卡片：无障碍权限
-        val leftCard = createSinglePermCard(
-            iconDrawable = createAccessibilityIcon(),
-            title = "无障碍权限 🐾",
-            subtitle = "用于小鹿替你在前面敲门开路",
-            onAction = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        ).also { accessibilityBtn = it.second }
+        // 小标题
+        val headerTv = TextView(this).apply {
+            text = "小鹿的出发准备"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(colorTextSub)
+            includeFontPadding = false
+        }
+        card.addView(headerTv)
 
-        // 🌟 右卡片：悬浮窗权限
-        val rightCard = createSinglePermCard(
-            iconDrawable = createOverlayIcon(),
-            title = "悬浮窗权限 💭",
-            subtitle = "用于聊天时小鹿在旁边悄悄支招",
+        // 1. 无障碍权限行
+        val (row1, btn1) = createPermRow(
+            icon = "🐾",
+            title = "敲门开路",
+            desc = "用于在 Boss 推荐流替你探寻新岗位",
+            onAction = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        )
+        accessibilityBtn = btn1
+
+        // 浅浅的分割线
+        val divider = View(this).apply {
+            setBackgroundColor(colorCardStroke)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp2px(1)
+            ).apply {
+                topMargin = dp2px(10)
+                bottomMargin = dp2px(10)
+            }
+        }
+
+        // 2. 悬浮窗权限行
+        val (row2, btn2) = createPermRow(
+            icon = "💭",
+            title = "悄悄支招",
+            desc = "聊天时让小鹿在旁边温柔辅助",
             onAction = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     startActivity(
@@ -217,205 +259,198 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
             }
-        ).also { overlayBtn = it.second }
+        )
+        overlayBtn = btn2
 
-        val leftParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            marginEnd = dp2px(8)
-        }
-        val rightParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            marginStart = dp2px(8)
-        }
+        card.addView(row1)
+        card.addView(divider)
+        card.addView(row2)
 
-        row.addView(leftCard.first, leftParams)
-        row.addView(rightCard.first, rightParams)
-        return row
+        return card
     }
 
-    private fun createSinglePermCard(
-        iconDrawable: Drawable,
+    private fun createPermRow(
+        icon: String,
         title: String,
-        subtitle: String,
+        desc: String,
         onAction: () -> Unit
     ): Pair<View, TextView> {
-        val card = LinearLayout(this).apply {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp2px(10) }
+        }
+
+        val iconTv = TextView(this).apply {
+            text = icon
+            textSize = 16f
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+            layoutParams = LinearLayout.LayoutParams(dp2px(26), dp2px(26))
+        }
+
+        val textCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            background = createCardDrawable()
-            setPadding(dp2px(12), dp2px(20), dp2px(12), dp2px(18))
-        }
-
-        // 圆形暖色底图标容器
-        val iconContainer = FrameLayout(this).apply {
-            val sz = dp2px(54)
-            layoutParams = LinearLayout.LayoutParams(sz, sz).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(colorPrimary)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginStart = dp2px(8)
+                marginEnd = dp2px(8)
             }
         }
-
-        val iconIv = ImageView(this).apply {
-            setImageDrawable(iconDrawable)
-            val iconSz = dp2px(28)
-            layoutParams = FrameLayout.LayoutParams(iconSz, iconSz, Gravity.CENTER)
-        }
-        iconContainer.addView(iconIv)
 
         val titleTv = TextView(this).apply {
             text = title
-            textSize = 15f
+            textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorTextMain)
-            gravity = Gravity.CENTER
             includeFontPadding = false
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp2px(12)
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
         }
 
-        val subTv = TextView(this).apply {
-            text = subtitle
+        val descTv = TextView(this).apply {
+            text = desc
             textSize = 11f
             setTextColor(colorTextSub)
-            gravity = Gravity.CENTER
             includeFontPadding = false
-            setLineSpacing(dp2px(2).toFloat(), 1.0f)
-            minLines = 2
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp2px(6)
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
+            ).apply { topMargin = dp2px(2) }
         }
+
+        textCol.addView(titleTv)
+        textCol.addView(descTv)
 
         val actionBtn = TextView(this).apply {
             text = "去开启"
-            textSize = 13f
+            textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorPrimary)
             gravity = Gravity.CENTER
             includeFontPadding = false
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp2px(100).toFloat()
-                setStroke(dp2px(1), colorPrimary)
-                setColor(Color.WHITE)
+                cornerRadius = dp2px(20).toFloat()
+                setColor(colorPrimarySoft)
             }
-            setPadding(dp2px(24), dp2px(7), dp2px(24), dp2px(7))
+            setPadding(dp2px(14), dp2px(6), dp2px(14), dp2px(6))
             setOnClickListener { onAction() }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp2px(16)
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
         }
 
-        card.addView(iconContainer)
-        card.addView(titleTv)
-        card.addView(subTv)
-        card.addView(actionBtn)
+        row.addView(iconTv)
+        row.addView(textCol)
+        row.addView(actionBtn)
 
-        return Pair(card, actionBtn)
+        return Pair(row, actionBtn)
     }
 
     /**
-     * 运行状态卡片 + 启动主按钮
+     * 运行状态与行动控制卡片 (极简干净、大圆角呼吸感)
      */
     private fun createRunningStatusCard(): View {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = createCardDrawable()
-            setPadding(dp2px(18), dp2px(18), dp2px(18), dp2px(18))
+            setPadding(dp2px(20), dp2px(20), dp2px(20), dp2px(20))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp2px(16) }
+            ).apply { topMargin = dp2px(14) }
         }
 
-        // 上半段：运行状态 + 环形进度圈
+        // 上方状态小胶囊与进度
         val topRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        val statusLabel = TextView(this).apply {
-            text = "运行状态: "
-            textSize = 16f
+        val statusPill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp2px(100).toFloat()
+                setColor(colorPrimarySoft)
+            }
+            setPadding(dp2px(10), dp2px(4), dp2px(12), dp2px(4))
+        }
+
+        val dot = View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(colorPrimary)
+            }
+            layoutParams = LinearLayout.LayoutParams(dp2px(6), dp2px(6)).apply {
+                marginEnd = dp2px(6)
+            }
+        }
+
+        statusTextTv = TextView(this).apply {
+            text = "小鹿待命 (就绪)"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(colorPrimary)
+            includeFontPadding = false
+        }
+        statusPill.addView(dot)
+        statusPill.addView(statusTextTv)
+
+        val progressInfo = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                weight = 1f
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            }
+        }
+
+        val progressLabel = TextView(this).apply {
+            text = "今日配额 "
+            textSize = 12f
+            setTextColor(colorTextSub)
+            includeFontPadding = false
+        }
+
+        percentageTv = TextView(this).apply {
+            text = "0%"
+            textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorTextMain)
             includeFontPadding = false
         }
 
-        statusTextTv = TextView(this).apply {
-            // 🌟 微调：默认小鹿待命
-            text = "小鹿待命"
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(colorPrimary)
-            includeFontPadding = false
-        }
-
-        val statusContainer = LinearLayout(this).apply {
+        val progressContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-            addView(statusLabel)
-            addView(statusTextTv)
+            addView(progressLabel)
+            addView(percentageTv)
         }
 
-        // 环形进度徽标
-        val progressCircle = FrameLayout(this).apply {
-            val sz = dp2px(42)
-            layoutParams = LinearLayout.LayoutParams(sz, sz)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp2px(3), colorPrimarySoft)
-            }
-        }
-        percentageTv = TextView(this).apply {
-            text = "0%"
-            textSize = 11f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(colorPrimary)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-        }
-        progressCircle.addView(percentageTv)
-
-        topRow.addView(statusContainer)
-        topRow.addView(progressCircle)
+        topRow.addView(statusPill)
+        topRow.addView(View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+        })
+        topRow.addView(progressContainer)
         card.addView(topRow)
 
-        // 下半段：启动任务主按钮
+        // 下半段：温润圆角行动主按钮
         mainActionButton = TextView(this).apply {
-            // 🌟 微调：拟人化操作文案
             text = "🦌 启动鹿鹿 · 开始探路"
-            textSize = 16f
+            textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             includeFontPadding = false
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp2px(10).toFloat()
+                cornerRadius = dp2px(14).toFloat()
                 setColor(colorPrimary)
             }
-            val bp = dp2px(14)
+            val bp = dp2px(15)
             setPadding(bp, bp, bp, bp)
             setOnClickListener { handleMainActionClick() }
             layoutParams = LinearLayout.LayoutParams(
@@ -429,39 +464,60 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 四列数据看板 (已约面试、今日沟通、今日投递、联系交换 - 100% 保持业务直觉)
+     * 四列数据看板 (去掉了大色块 Emoji 干扰，以清爽的现代排印聚焦数据)
      */
     private fun createDataDashboardCard(): View {
         val card = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+            orientation = LinearLayout.VERTICAL
             background = createCardDrawable()
-            setPadding(dp2px(12), dp2px(20), dp2px(12), dp2px(20))
+            setPadding(dp2px(16), dp2px(18), dp2px(16), dp2px(18))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp2px(16) }
+            ).apply { topMargin = dp2px(14) }
         }
 
-        val (c1, tv1) = createDataColumn("📅", "已约面试", "0")
-        val (c2, tv2) = createDataColumn("💬", "今日沟通", "0")
-        val (c3, tv3) = createDataColumn("✈️", "今日投递", "0")
-        val (c4, tv4) = createDataColumn("📇", "联系交换", "0")
+        val headerTv = TextView(this).apply {
+            text = "求职战报小结"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(colorTextSub)
+            includeFontPadding = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = dp2px(14) }
+        }
+        card.addView(headerTv)
+
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        val (c1, tv1) = createDataColumn("已约面试", "0")
+        val (c2, tv2) = createDataColumn("今日沟通", "0")
+        val (c3, tv3) = createDataColumn("今日投递", "0")
+        val (c4, tv4) = createDataColumn("联系交换", "0")
 
         interviewCountTv = tv1
         chatCountTv = tv2
         deliveryCountTv = tv3
         contactCountTv = tv4
 
-        card.addView(c1)
-        card.addView(c2)
-        card.addView(c3)
-        card.addView(c4)
+        row.addView(c1)
+        row.addView(c2)
+        row.addView(c3)
+        row.addView(c4)
 
+        card.addView(row)
         return card
     }
 
     private fun createDataColumn(
-        icon: String,
         label: String,
         initialValue: String
     ): Pair<View, TextView> {
@@ -471,22 +527,18 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        val iconTv = TextView(this).apply {
-            text = icon
-            textSize = 20f
+        val countTv = TextView(this).apply {
+            text = initialValue
+            textSize = 21f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(colorTextMain)
             gravity = Gravity.CENTER
             includeFontPadding = false
-            layoutParams = LinearLayout.LayoutParams(
-                dp2px(28),
-                dp2px(28)
-            ).apply {
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
         }
 
         val labelTv = TextView(this).apply {
             text = label
-            textSize = 12f
+            textSize = 11f
             setTextColor(colorTextSub)
             gravity = Gravity.CENTER
             includeFontPadding = false
@@ -494,52 +546,37 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = dp2px(6)
+                topMargin = dp2px(4)
                 gravity = Gravity.CENTER_HORIZONTAL
             }
         }
 
-        val countTv = TextView(this).apply {
-            text = initialValue
-            textSize = 20f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(colorTextMain)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp2px(6)
-                gravity = Gravity.CENTER_HORIZONTAL
-            }
-        }
-
-        col.addView(iconTv)
-        col.addView(labelTv)
         col.addView(countTv)
+        col.addView(labelTv)
 
         return Pair(col, countTv)
     }
 
     /**
-     * 底部常驻导航栏
+     * 极简扁平底部导航栏
      */
     private fun createBottomNav(): View {
         val nav = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(Color.WHITE)
-            elevation = dp2px(8).toFloat()
+            // 极细微的顶边线
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                setStroke(dp2px(1), colorCardStroke)
+            }
         }
 
-        val tabHome = createNavItem("🏠", "首页", isSelected = true) {
-            // 当前即为首页
-        }
-        val tabRecords = createNavItem("📋", "任务记录", isSelected = false) {
+        val tabHome = createNavItem("首页", isSelected = true) {}
+        val tabRecords = createNavItem("投递记录", isSelected = false) {
             startActivity(Intent(this, HistoryRecordActivity::class.java))
         }
-        val tabMine = createNavItem("👤", "我的", isSelected = false) {
+        val tabMine = createNavItem("我的设置", isSelected = false) {
             showSettingsDialog()
         }
 
@@ -551,7 +588,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createNavItem(
-        icon: String,
         label: String,
         isSelected: Boolean,
         onClick: () -> Unit
@@ -562,36 +598,15 @@ class MainActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
             setOnClickListener { onClick() }
 
-            val iconTv = TextView(this@MainActivity).apply {
-                text = icon
-                textSize = 18f
-                gravity = Gravity.CENTER
-                includeFontPadding = false
-                layoutParams = LinearLayout.LayoutParams(
-                    dp2px(24),
-                    dp2px(24)
-                ).apply {
-                    gravity = Gravity.CENTER_HORIZONTAL
-                }
-            }
-
             val labelTv = TextView(this@MainActivity).apply {
                 text = label
-                textSize = 11f
+                textSize = 13f
                 gravity = Gravity.CENTER
                 includeFontPadding = false
                 typeface = if (isSelected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
                 setTextColor(if (isSelected) colorPrimary else colorTextSub)
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = dp2px(4)
-                    gravity = Gravity.CENTER_HORIZONTAL
-                }
             }
 
-            addView(iconTv)
             addView(labelTv)
         }
     }
@@ -599,31 +614,27 @@ class MainActivity : AppCompatActivity() {
     // ==================== 业务逻辑与状态驱动 ====================
 
     private fun refreshAllStatus() {
-        // 1. 刷新无障碍权限
         val isAccessibilityOk = BossAccessibilityService.isConnected()
         updateButtonStatus(accessibilityBtn, isAccessibilityOk)
 
-        // 2. 刷新悬浮窗权限
         val isOverlayOk = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
         updateButtonStatus(overlayBtn, isOverlayOk)
 
-        // 3. 刷新引擎状态与主按键文字
         val app = application as LuluApp
         val state = app.stateMachine.getCurrentState()
         updateEngineStateUi(state)
 
-        // 4. 从数据库异步查询统计数据
         loadDashboardData(app)
     }
 
     private fun updateButtonStatus(btn: TextView, isGranted: Boolean) {
         if (isGranted) {
-            btn.text = "已开启"
+            btn.text = "已就绪 ✨"
             btn.setTextColor(colorSuccess)
             btn.background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp2px(100).toFloat()
-                setColor(Color.parseColor("#E8F5E9"))
+                cornerRadius = dp2px(20).toFloat()
+                setColor(colorSuccessSoft)
             }
             btn.isEnabled = false
         } else {
@@ -631,18 +642,16 @@ class MainActivity : AppCompatActivity() {
             btn.setTextColor(colorPrimary)
             btn.background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp2px(100).toFloat()
-                setStroke(dp2px(1), colorPrimary)
-                setColor(Color.WHITE)
+                cornerRadius = dp2px(20).toFloat()
+                setColor(colorPrimarySoft)
             }
             btn.isEnabled = true
         }
     }
 
     private fun updateEngineStateUi(state: EngineState) {
-        // 🌟 微调：空闲时显示拟人化文案
         if (state == EngineState.IDLE) {
-            statusTextTv.text = "小鹿待命 (就绪)"
+            statusTextTv.text = "小鹿待命 (随时出发)"
         } else {
             statusTextTv.text = state.title
         }
@@ -654,17 +663,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (state.isOperating()) {
-            // 🌟 微调：暂停提示
-            mainActionButton.text = "☕ 鹿鹿喝口水 (暂停)"
+            mainActionButton.text = "☕ 鹿鹿喝口水 (暂停中)"
             mainActionButton.background = GradientDrawable().apply {
-                cornerRadius = dp2px(10).toFloat()
-                setColor(Color.parseColor("#EF6C00")) // 橙色暂停
+                cornerRadius = dp2px(14).toFloat()
+                setColor(Color.parseColor("#F57C00"))
             }
         } else {
-            // 🌟 微调：启动提示
             mainActionButton.text = "🦌 启动鹿鹿 · 开始探路"
             mainActionButton.background = GradientDrawable().apply {
-                cornerRadius = dp2px(10).toFloat()
+                cornerRadius = dp2px(14).toFloat()
                 setColor(colorPrimary)
             }
         }
@@ -690,7 +697,6 @@ class MainActivity : AppCompatActivity() {
             chatCountTv.text = todayChat.toString()
             deliveryCountTv.text = todayApplied.toString()
 
-            // 计算今日打招呼上限比例
             val maxCount = app.configRepository.getMaxDailyGreetings()
             val percent = if (maxCount > 0) minOf(100, (todayChat * 100) / maxCount) else 0
             percentageTv.text = "$percent%"
@@ -702,28 +708,25 @@ class MainActivity : AppCompatActivity() {
         val currentState = app.stateMachine.getCurrentState()
 
         if (currentState.isOperating()) {
-            // 运行中 -> 暂停
             app.taskDispatcher.pause()
             updateEngineStateUi(EngineState.PAUSED)
             return
         }
 
         if (currentState == EngineState.PAUSED) {
-            // 已暂停 -> 恢复
             app.taskDispatcher.resume()
             updateEngineStateUi(EngineState.SCANNING)
             return
         }
 
-        // 待启动 -> 校验并启动
         if (!BossAccessibilityService.isConnected()) {
-            Toast.makeText(this, "请先开启【无障碍权限】", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "请先开启【敲门开路】权限", Toast.LENGTH_SHORT).show()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "请先开启【悬浮窗权限】", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "请先开启【悄悄支招】权限", Toast.LENGTH_SHORT).show()
             startActivity(
                 Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -739,7 +742,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // 1. 尝试拉起 Boss 直聘
         val bossIntent = packageManager.getLaunchIntentForPackage(bossPackage)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
         }
@@ -749,42 +751,35 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "未检测到 Boss 直聘安装", Toast.LENGTH_SHORT).show()
         }
 
-        // 2. 启动悬浮窗服务
         FloatingHUDService.startService(this)
-
-        // 3. 启动任务调度器 (带 4000ms 预热缓冲)
         app.taskDispatcher.start(warmUpDelayMs = 4000L)
         updateEngineStateUi(EngineState.SCANNING)
 
         Toast.makeText(this, "🚀 鹿鹿已启航，正在跳转 Boss 直聘...", Toast.LENGTH_SHORT).show()
     }
 
-    /**
-     * 弹出设置选项弹窗
-     */
     private fun showSettingsDialog() {
         val dialog = Dialog(this)
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                cornerRadius = dp2px(16).toFloat()
+                cornerRadius = dp2px(18).toFloat()
                 setColor(Color.WHITE)
             }
-            val p = dp2px(20)
+            val p = dp2px(22)
             setPadding(p, p, p, p)
         }
 
         val title = TextView(this).apply {
-            // 🌟 微调：弹窗标题
-            text = "🎒 鹿鹿的百宝袋 (核心配置)"
-            textSize = 18f
+            text = "🎒 鹿鹿的百宝袋"
+            textSize = 17f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(colorTextMain)
             includeFontPadding = false
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = dp2px(8) }
+            ).apply { bottomMargin = dp2px(12) }
         }
         container.addView(title)
 
@@ -792,7 +787,7 @@ class MainActivity : AppCompatActivity() {
             return LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp2px(4), dp2px(14), dp2px(4), dp2px(14))
+                setPadding(dp2px(4), dp2px(12), dp2px(4), dp2px(12))
                 setOnClickListener {
                     dialog.dismiss()
                     onClick()
@@ -800,10 +795,10 @@ class MainActivity : AppCompatActivity() {
 
                 val iconTv = TextView(this@MainActivity).apply {
                     this.text = icon
-                    textSize = 18f
+                    textSize = 16f
                     gravity = Gravity.CENTER
                     includeFontPadding = false
-                    layoutParams = LinearLayout.LayoutParams(dp2px(26), dp2px(26))
+                    layoutParams = LinearLayout.LayoutParams(dp2px(24), dp2px(24))
                 }
 
                 val labelTv = TextView(this@MainActivity).apply {
@@ -848,8 +843,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // ==================== 状态同步广播监听 ====================
-
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == DispatcherBroadcasts.ACTION_ENGINE_STATE_CHANGED) {
@@ -876,137 +869,10 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    // ==================== 自绘高质感矢量图标 (保持不变) ====================
-
-    private fun createAccessibilityIcon(): Drawable {
-        return object : Drawable() {
-            private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.STROKE
-                strokeCap = Paint.Cap.ROUND
-                strokeJoin = Paint.Join.ROUND
-            }
-            private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.FILL
-            }
-
-            override fun draw(canvas: Canvas) {
-                val b = bounds
-                val w = b.width().toFloat()
-                val h = b.height().toFloat()
-                if (w <= 0f || h <= 0f) return
-
-                val cx = b.left + w / 2f
-                val size = minOf(w, h) * 0.8f
-                val startY = b.top + (h - size) / 2f
-
-                strokePaint.strokeWidth = size * 0.12f
-
-                val headRadius = size * 0.13f
-                val headCenterY = startY + headRadius
-                canvas.drawCircle(cx, headCenterY, headRadius, fillPaint)
-
-                val armY = startY + size * 0.40f
-                val armSpan = size * 0.42f
-                canvas.drawLine(cx - armSpan, armY, cx + armSpan, armY, strokePaint)
-
-                val torsoBottomY = startY + size * 0.66f
-                canvas.drawLine(cx, armY, cx, torsoBottomY, strokePaint)
-
-                val legSpan = size * 0.30f
-                val legBottomY = startY + size
-                canvas.drawLine(cx, torsoBottomY, cx - legSpan, legBottomY, strokePaint)
-                canvas.drawLine(cx, torsoBottomY, cx + legSpan, legBottomY, strokePaint)
-            }
-
-            override fun setAlpha(alpha: Int) {
-                strokePaint.alpha = alpha
-                fillPaint.alpha = alpha
-            }
-
-            override fun setColorFilter(colorFilter: ColorFilter?) {
-                strokePaint.colorFilter = colorFilter
-                fillPaint.colorFilter = colorFilter
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-        }
-    }
-
-    private fun createOverlayIcon(): Drawable {
-        return object : Drawable() {
-            private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.STROKE
-                strokeCap = Paint.Cap.ROUND
-                strokeJoin = Paint.Join.ROUND
-            }
-            private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
-                style = Paint.Style.FILL
-            }
-
-            override fun draw(canvas: Canvas) {
-                val b = bounds
-                val w = b.width().toFloat()
-                val h = b.height().toFloat()
-                if (w <= 0f || h <= 0f) return
-
-                val size = minOf(w, h) * 0.8f
-                val left = b.left + (w - size) / 2f
-                val top = b.top + (h - size) / 2f
-
-                strokePaint.strokeWidth = size * 0.10f
-                val corner = size * 0.12f
-
-                val mainRect = RectF(
-                    left,
-                    top,
-                    left + size * 0.82f,
-                    top + size * 0.72f
-                )
-                canvas.drawRoundRect(mainRect, corner, corner, strokePaint)
-
-                val barY = top + size * 0.22f
-                canvas.drawLine(left + size * 0.08f, barY, left + size * 0.74f, barY, strokePaint)
-
-                val floatRect = RectF(
-                    left + size * 0.44f,
-                    top + size * 0.40f,
-                    left + size,
-                    top + size * 0.96f
-                )
-                fillPaint.color = colorPrimary
-                canvas.drawRoundRect(floatRect, corner, corner, fillPaint)
-                strokePaint.strokeWidth = size * 0.09f
-                canvas.drawRoundRect(floatRect, corner, corner, strokePaint)
-                fillPaint.color = Color.WHITE
-                canvas.drawCircle(floatRect.centerX(), floatRect.centerY(), size * 0.06f, fillPaint)
-            }
-
-            override fun setAlpha(alpha: Int) {
-                strokePaint.alpha = alpha
-                fillPaint.alpha = alpha
-            }
-
-            override fun setColorFilter(colorFilter: ColorFilter?) {
-                strokePaint.colorFilter = colorFilter
-                fillPaint.colorFilter = colorFilter
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-        }
-    }
-
-    // ==================== 工具函数 ====================
-
     private fun createCardDrawable(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp2px(16).toFloat()
+            cornerRadius = dp2px(18).toFloat()
             setColor(colorCard)
             setStroke(dp2px(1), colorCardStroke)
         }
